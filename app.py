@@ -3,7 +3,7 @@ import streamlit as st
 # Configuración visual para móvil
 st.set_page_config(page_title="LH Aberturas", page_icon="🦁")
 
-# CSS para mejorar el contraste de los totales
+# Estilo para mejorar contraste y lectura en taller
 st.markdown("""
     <style>
     .stMetric {
@@ -25,14 +25,20 @@ st.markdown("""
 st.title("LH Aberturas")
 st.subheader("Optimizador de Corte y Precios")
 
-# Parámetros de Costos
-P_ALU = 13000
+# --- PARÁMETROS DE COSTOS ACTUALIZADOS ---
+P_ALU = 11500  # Precio con desperdicio incluido
 P_COMUN = 20000
 P_DVH = 60000
 ACCESORIOS = 15000
 
-# Entradas
+# Entradas principales
 linea = st.radio("Seleccione Línea:", ["Herrero", "Modena"], horizontal=True)
+
+# Selector de vidrio solo para Modena para definir Mano de Obra y Costo Vidrio
+tipo_modena = "Común"
+if linea == "Modena":
+    tipo_modena = st.selectbox("Tipo de Vidrio para Modena:", ["Común", "DVH"])
+
 ancho = st.number_input("Ancho Total (cm)", min_value=0.0, step=0.1, format="%.1f")
 alto = st.number_input("Alto Total (cm)", min_value=0.0, step=0.1, format="%.1f")
 
@@ -41,22 +47,22 @@ if ancho > 0 and alto > 0:
     
     if linea == "Herrero":
         # Cortes Herrero
-        n1 = ancho  # Marco Horiz
-        n1_v = alto # Marco Vert
+        n1 = ancho
+        n1_v = alto
         n2 = (ancho / 2) - 9.6
         n3_4 = alto - 6.4
         v_a, v_h = (ancho / 2) - 8, alto - 14.5
         
-        # Peso Herrero: N1(0.58), N2(0.41), N3/4(0.40)
+        # Pesos y Costos Herrero
         peso = (((n1*2 + n1_v*2)/100)*0.58) + ((n2*4/100)*0.41) + ((n3_4*4/100)*0.40)
         costo_v = (v_a * v_h * 2 / 10000) * P_COMUN
-        tipo_v = "Común"
+        mano_obra = 15000
+        vidrio_label = "Común"
         
         st.success("📐 LISTA DE CORTE (HERRERO)")
         st.write(f"**Número 1:** {n1:.1f} cm (Ancho) / {n1_v:.1f} cm (Alto)")
         st.write(f"**Número 2:** {n2:.1f} cm")
         st.write(f"**Número 3 y 4:** {n3_4:.1f} cm")
-        st.info(f"🖼 **Vidrio {tipo_v}:** {v_a:.1f} x {v_h:.1f} cm (x2)")
 
     else:
         # Cortes Modena
@@ -64,29 +70,39 @@ if ancho > 0 and alto > 0:
         umbral = ancho - 4.3
         n2 = ((ancho - 4.3) / 2) - 0.4
         n3_4 = alto - 8
-        v_a, v_h = (ancho / 2) - 7.3, alto - 16
         
-        # Peso Modena: Umbral(1.33), Jamba/N2/N3/N4(0.66)
+        # Lógica de Vidrio y Mano de Obra Modena
+        if tipo_modena == "DVH":
+            v_a, v_h = (ancho / 2) - 7.3, alto - 16
+            costo_v = (v_a * v_h * 2 / 10000) * P_DVH
+            mano_obra = 40000
+            vidrio_label = "DVH"
+        else:
+            v_a, v_h = (ancho / 2) - 8.3, alto - 17
+            costo_v = (v_a * v_h * 2 / 10000) * P_COMUN
+            mano_obra = 25000
+            vidrio_label = "Común"
+        
         peso = ((umbral*2/100)*1.33) + (((jamba*2 + n2*4 + n3_4*4)/100)*0.66)
-        costo_v = (v_a * v_h * 2 / 10000) * P_DVH
-        tipo_v = "DVH"
         
         st.success("📐 LISTA DE CORTE (MODENA)")
         st.write(f"**Jamba:** {jamba:.1f} cm")
         st.write(f"**Umbral:** {umbral:.1f} cm")
         st.write(f"**Número 2:** {n2:.1f} cm")
         st.write(f"**Número 3 y 4:** {n3_4:.1f} cm")
-        st.info(f"🖼 **Vidrio {tipo_v}:** {v_a:.1f} x {v_h:.1f} cm (x2)")
 
-    # Totales y Presupuesto
+    st.info(f"🖼 **Vidrio {vidrio_label}:** {v_a:.1f} x {v_h:.1f} cm (x2)")
+
+    # Cálculo Final
     costo_a = peso * P_ALU
-    total = costo_a + costo_v + ACCESORIOS
+    gasto_total = costo_a + costo_v + ACCESORIOS + mano_obra
     
     st.markdown("---")
     st.metric("PESO TOTAL", f"{peso:.2f} kg")
-    st.metric("PRESUPUESTO TOTAL", f"${total:,.0f}")
+    st.metric("GASTO TOTAL", f"${gasto_total:,.0f}")
     
     with st.expander("Ver detalle de costos"):
-        st.write(f"Aluminio: ${costo_a:,.0f}")
-        st.write(f"Vidrio: ${costo_v:,.0f}")
+        st.write(f"Aluminio (con desperdicios): ${costo_a:,.0f}")
+        st.write(f"Vidrio ({vidrio_label}): ${costo_v:,.0f}")
         st.write(f"Accesorios: ${ACCESORIOS:,.0f}")
+        st.write(f"Mano de obra: ${mano_obra:,.0f}")
